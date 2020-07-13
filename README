@@ -1,0 +1,6 @@
+Programa em Python para visualização e previsão de métricas usando os dados disponibilizados pelo Ministério da Saúde em https://covid.saude.gov.br/
+
+Por ora, é necessário:
+  - Baixar o arquivo do site através do botão "Baixar CSV"
+  - Convertê-lo a .csv, pois o site baixa um .xlsx
+  - Colocá-lo na pasta do main.py
