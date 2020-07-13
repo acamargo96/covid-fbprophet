@@ -11,19 +11,26 @@ import os
 import warnings
 import logging
 
+# módulo de download dos dados em .csv
+import file_operations
+
 warnings.filterwarnings('ignore')
 logging.getLogger('fbprophet').setLevel(logging.WARNING)
 
-# script folder 
+# caminho do script 
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
+
+file_operations.download_file()
+file_operations.copy_from_downloads(SCRIPT_PATH)
 
 class CovidData():
 
     def __init__(self):
 
         # cria Dataframe de dados brutos
-        self.raw_df = pd.read_csv(filepath_or_buffer=os.path.join(SCRIPT_PATH, 'raw.csv'), delimiter=';')
-
+        #self.raw_df = pd.read_csv(filepath_or_buffer=os.path.join(SCRIPT_PATH, 'raw.csv'), delimiter=';')
+        self.raw_df = pd.read_excel('raw.xlsx')
+        print(self.raw_df)
         self.correct_col_name = {'data' : 'Data',
                                  'casosAcumulado' : 'Casos Acumulados',
                                  'casosNovos' : 'Casos Novos',
@@ -283,7 +290,7 @@ def main():
     data = CovidData()
 
     #data.plot_column('casosNovos', region='Brasil')
-    data.plot_compare('log(casosAcumulado)', [('Brasil','',''), ('Sudeste', 'SP', ''), ('Sudeste', 'SP', 'Santo André')])
+    #data.plot_compare('log(casosAcumulado)', [('Brasil','',''), ('Sudeste', 'SP', ''), ('Sudeste', 'SP', 'Santo André')])
     #data.fit(column='obitosNovos', region='Brasil', pred_periods=120, seasonality_mode='multiplicative')
     #data.fit_compare(column='log(casosAcumulado)', region='Brasil', state='', city='', pred_periods=100)
 
