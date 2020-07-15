@@ -7,6 +7,7 @@ from shutil import move, copyfileobj
 import glob
 import gzip
 import csv
+from subprocess import call
 
 from time import sleep
 from datetime import datetime as dt
@@ -67,12 +68,60 @@ def move_xlsx_to(destination):
     os.rename(most_recent_file, new_file_path)
 
     # remove o raw.xlsx da pasta do script
-    os.remove(os.path.join(destination, 'raw.xlsx'))
+    if os.path.isfile(os.path.join(destination, 'raw.xlsx')):
+        os.remove(os.path.join(destination, 'raw.xlsx'))
 
     move(new_file_path, destination)
+    xlsx_to_csv(destination)
+
+    os.remove(os.path.join(destination, 'raw.xlsx'))
 
 # -------------------------------------------------------------------------
+def xlsx_to_csv(destination):
     
+    # Fonte: https://stackoverflow.com/questions/28766133/faster-way-to-read-excel-files-to-pandas-dataframe
+
+    xl_file = os.path.join(destination, 'raw.xlsx')
+    csv = os.path.join(destination, 'raw.csv') 
+    call(['cscript.exe', os.path.join(destination, 'ExcelToCsv.vbs'), xl_file, csv, '1'])
+
+# -------------------------------------------------------------------------
+def create_vbs_conv():
+
+    # Fonte: https://stackoverflow.com/questions/28766133/faster-way-to-read-excel-files-to-pandas-dataframe
+    # Cria um arquivo .vbs para converter .xlsx para .csv
+
+    vbscript="""if WScript.Arguments.Count < 3 Then
+        WScript.Echo "Please specify the source and the destination files. Usage: ExcelToCsv <xls/xlsx source file> <csv destination file> <worksheet number (starts at 1)>"
+        Wscript.Quit
+    End If
+
+    csv_format = 6
+
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+
+    src_file = objFSO.GetAbsolutePathName(Wscript.Arguments.Item(0))
+    dest_file = objFSO.GetAbsolutePathName(WScript.Arguments.Item(1))
+    worksheet_number = CInt(WScript.Arguments.Item(2))
+
+    Dim oExcel
+    Set oExcel = CreateObject("Excel.Application")
+
+    Dim oBook
+    Set oBook = oExcel.Workbooks.Open(src_file)
+    oBook.Worksheets(worksheet_number).Activate
+
+    oBook.SaveAs dest_file, csv_format
+
+    oBook.Close False
+    oExcel.Quit
+    """
+
+    f = open('ExcelToCsv.vbs','wb')
+    f.write(vbscript.encode('utf-8'))
+    f.close()
+
+# -------------------------------------------------------------------------
 def get_download_path():
     """
     Fonte :https://stackoverflow.com/questions/35851281/python-finding-the-users-downloads-folder

@@ -12,6 +12,8 @@ import gzip
 import warnings
 import logging
 
+from time import perf_counter
+
 # módulo de download dos dados em .csv
 import file_operations as f_op
 
@@ -26,13 +28,12 @@ SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class CovidData():
 
-    def __init__(self, data_source='Brasil.io', filetype='csv'):
+    def __init__(self, data_source='Brasil.io', donwload_new=False):
 
         # cria Dataframe de dados brutos
-        
         if data_source == 'Brasil.io':
-            if not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz')):
-                # Arquivo .csv não foi baixado
+            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz'))) or donwload_new:
+                # Arquivo .csv não foi baixado ou o usuário especificou um novo download
                 f_op.download_file_brasil_io()
 
             # Abre o arquivo e carrega o dataframe
@@ -54,15 +55,19 @@ class CovidData():
 
         elif data_source == 'Ministério da Saúde':
 
-            if filetype == 'xlsx':
-                self.raw_df = pd.read_excel('raw.xlsx')
-            elif filetype == 'csv':
-                self.raw_df = pd.read_csv('raw.csv', delimiter=';')
+            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'raw.csv'))) or donwload_new:
+                # Arquivo .xlsx não foi baixado ou convertido ou usuário quer baixar novo
+                # Baixa, move e converte para .csv
+                f_op.download_file_min_saude()
+                f_op.move_xlsx_to(SCRIPT_PATH)
+
+            self.raw_df = pd.read_csv('raw.csv', delimiter=',', encoding='latin', 
+                                      lineterminator='\n')
 
             self.raw_df.columns = ['region', 'state', 'city', 'coduf', 'codmun', 'codRegiaoSaude',
-                                   'nomeRegiaoSaude', 'date', 'semanaEpi', 'populacaoTCU2019',
-                                   'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
-                                   'Recuperadosnovos', 'emAcompanhamentoNovos', 'interior/metropolitana']
+                                'nomeRegiaoSaude', 'date', 'semanaEpi', 'populacaoTCU2019',
+                                'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
+                                'Recuperadosnovos', 'emAcompanhamentoNovos', 'interior/metropolitana']
 
             self.correct_col_name = {'date' : 'Data',
                                     'casosAcumulado' : 'Casos Acumulados',
@@ -136,28 +141,35 @@ class CovidData():
         '''(String, String, String, String) -> None
         Plota o gráfico de uma métrica em um local selecionado'''
 
-        df = self.get_df(region, state, city)
+        if self.valid_col(column):    
 
-        if not df.empty:
-            if ax is None:
-                fig = plt.figure(facecolor='w', figsize=(10,6))
-                ax = fig.add_subplot(111)
-                show = True
-            else:
-                fig = ax.get_figure()
-                show = False
-        
-            locator = AutoDateLocator(interval_multiples=False)
-            formatter = AutoDateFormatter(locator)
-            ax.xaxis.set_major_locator(locator)
-            ax.xaxis.set_major_formatter(formatter)
-            ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[column], self.format_location( [region, state, city] ) ) )
+            df = self.get_df(region, state, city)
+
+            if not df.empty:
+                if ax is None:
+                    fig = plt.figure(facecolor='w', figsize=(10,6))
+                    ax = fig.add_subplot(111)
+                    show = True
+                else:
+                    fig = ax.get_figure()
+                    show = False
             
-            if show:
-                fig.legend()
-                plt.show()
+                locator = AutoDateLocator(interval_multiples=False)
+                formatter = AutoDateFormatter(locator)
+                ax.xaxis.set_major_locator(locator)
+                ax.xaxis.set_major_formatter(formatter)
+                ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[column], self.format_location( [region, state, city] ) ) )
+                
+                if show:
+                    fig.legend()
+                    plt.show()
+            else:
+                print(self.not_found_msg(region, state, city))
+
         else:
-            print(self.not_found_msg(region, state, city))
+            valid_vals = [k for k in self.correct_col_name if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
 
@@ -165,15 +177,21 @@ class CovidData():
         '''
         location_list é uma lista com tuples (region, state, city) '''
 
-        fig = plt.figure(facecolor='w', figsize=(10,6))
-        ax = fig.add_subplot(111)
+        if self.valid_col(column):
+            fig = plt.figure(facecolor='w', figsize=(10,6))
+            ax = fig.add_subplot(111)
 
-        for location in location_list:
-            self.plot_column(column, location[0], location[1], location[2], ax=ax)
+            for location in location_list:
+                self.plot_column(column, location[0], location[1], location[2], ax=ax)
+            
+            fig.legend()
+            plt.show()   
         
-        fig.legend()
-        plt.show()   
-    
+        else:
+            valid_vals = [k for k in self.correct_col_name if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (column, '\n- '.join(valid_vals) ))
+
     # -------------------------------------------------------------------------------------------------------
 
     def format_location(self, loc_list):
@@ -218,17 +236,24 @@ class CovidData():
         '''(String, String, String, String, Int) -> None
         Usa o Prophet para prever n dias e plotar o gráfico de uma métrica em um local selecionado'''
         
-        df = self.get_df(region, state, city)
-        df = df[['date', column]]
-        df.columns = ['ds', 'y']
+        if self.valid_col(column):
 
-        if not df.empty:
-            m = self.get_model(column, df, seasonality_mode=seasonality_mode)
-            m.plot(self.forecast(df, column, pred_periods, m))
-            plt.show()
+            df = self.get_df(region, state, city)
+            df = df[['date', column]]
+            df.columns = ['ds', 'y']
 
+            if not df.empty:
+                m = self.get_model(column, df, seasonality_mode=seasonality_mode)
+                m.plot(self.forecast(df, column, pred_periods, m))
+                plt.show()
+
+            else:
+                print(self.not_found_msg(region, state, city))
+        
         else:
-            print(self.not_found_msg(region, state, city))
+            valid_vals = [k for k in self.correct_col_name if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
        
@@ -237,52 +262,58 @@ class CovidData():
         ''' (String, String, String, String, Int, Int) -> None
         Faz previsões usando intervalos do dataframe e as plota em um mesmo gráfico
         '''
+
+        if self.valid_col(column):
         
-        df = self.get_df(region, state, city)
-        df = df[['date', column]]
+            df = self.get_df(region, state, city)
+            df = df[['date', column]]
 
-        # garante que os dados descontinuos do Brasil.io não façam pular indices
-        df.reset_index(drop=True, inplace=True)
+            # garante que os dados descontinuos do Brasil.io não façam pular indices
+            df.reset_index(drop=True, inplace=True)
 
-        df.columns = ['ds', 'y']
+            df.columns = ['ds', 'y']
 
+            if not df.empty:
+                indexes = list(range(0, df.last_valid_index(), compare_periods))
+                last_index = df.last_valid_index()
+                indexes[-1] = last_index
 
-        if not df.empty:
-            indexes = list(range(0, df.last_valid_index(), compare_periods))
-            last_index = df.last_valid_index()
-            indexes[-1] = last_index
+                fig = plt.figure(facecolor='w', figsize=(10,6))
+                ax = fig.add_subplot(111)
+                plot_actual = False
 
-            fig = plt.figure(facecolor='w', figsize=(10,6))
-            ax = fig.add_subplot(111)
-            plot_actual = False
+                colors = ['#0072B2', '#F90909', '#D48888', '#BD9446', '#63FF14', '#B056EF',
+                        '#FF9C09', '#669677', '#8F6696', '#EEAD0E']
 
-            colors = ['#0072B2', '#F90909', '#D48888', '#BD9446', '#63FF14', '#B056EF',
-                    '#FF9C09', '#669677', '#8F6696', '#EEAD0E']
+                for i in indexes:
+                    # plots actual data on last value
+                    if i == indexes[-1]: 
+                        plot_actual = True
+                        sub_df = df.iloc[ : ]
+                        num_forecasts = pred_periods
+                    else:
+                        sub_df = df.iloc[ : i + compare_periods]
+                        num_forecasts = last_index + pred_periods - (i + compare_periods)
+                    
+                    m = self.get_model(column, sub_df, seasonality_mode=seasonality_mode)
+                    
+                    plot_color = choice(colors)
+                    colors.remove(plot_color)
 
-            for i in indexes:
-                # plots actual data on last value
-                if i == indexes[-1]: 
-                    plot_actual = True
-                    sub_df = df.iloc[ : ]
-                    num_forecasts = pred_periods
-                else:
-                    sub_df = df.iloc[ : i + compare_periods]
-                    num_forecasts = last_index + pred_periods - (i + compare_periods)
+                    self.prophet_plot(m, self.forecast(sub_df, column, num_forecasts, m), ax=ax,
+                                    plot_color=plot_color, plot_actual=plot_actual, 
+                                    label='Using %d periods' % len(sub_df))
                 
-                m = self.get_model(column, sub_df, seasonality_mode=seasonality_mode)
-                
-                plot_color = choice(colors)
-                colors.remove(plot_color)
+                fig.legend()
+                plt.show()
 
-                self.prophet_plot(m, self.forecast(sub_df, column, num_forecasts, m), ax=ax,
-                                plot_color=plot_color, plot_actual=plot_actual, 
-                                label='Using %d periods' % len(sub_df))
-            
-            fig.legend()
-            plt.show()
-
-        else: # df is empty
-            print(self.not_found_msg(region, state, city))
+            else: # df está vazio
+                print(self.not_found_msg(region, state, city))
+        
+        else: # coluna inválida
+            valid_vals = [k for k in self.correct_col_name if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
         
@@ -338,10 +369,17 @@ class CovidData():
 
         return str_out
 
+    # -------------------------------------------------------------------------------------------------------
+
+    def valid_col(self, column):
+
+        return column in self.correct_col_name and column != 'date'
+
 def main():
 
-    data = CovidData(data_source='Brasil.io', filetype='csv')
-    #data.plot_column('new_confirmed', state='SP', city='São Paulo')
+    data = CovidData(data_source='Brasil.io')
+    print(data.raw_df.columns)
+    #data.plot_column('new_deaths', state='SP', city='São Paulo')
     #data.plot_compare('new_confirmed', [('','SP','São Paulo'), ('', 'SP', 'Santo André'), ('', 'SP', 'São Caetano do Sul')])
     #data.fit(column='new_confirmed', state='SP', city='São Paulo', pred_periods=120, seasonality_mode='multiplicative')
     #data.fit_compare(column='new_confirmed', state='SP', city='São Paulo', pred_periods=100, seasonality_mode='multiplicative')
