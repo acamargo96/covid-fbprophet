@@ -1,4 +1,3 @@
-Programa em Python para visualização e previsão de métricas usando os dados disponibilizados pelo Ministério da Saúde em https://covid.saude.gov.br/ ou os 
-dados presentes em https://brasil.io/covid19/
+Programa em Python para visualização e previsão de métricas usando os dados disponibilizados pelo Ministério da Saúde em https://covid.saude.gov.br/ ou os dados presentes em https://brasil.io/covid19/
   
 Ainda em desenvolvimento, faltam várias funcionalidades. Por exemplo, ainda é necessário especificar os parâmetros dos modelos, criar uma interface gráfica etc.
