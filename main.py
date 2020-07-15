@@ -7,12 +7,16 @@ from matplotlib.dates import AutoDateFormatter, AutoDateLocator
 
 from random import choice
 import os
+import gzip
 
 import warnings
 import logging
 
 # módulo de download dos dados em .csv
-import file_operations
+import file_operations as f_op
+
+# conversão de caracteres UTF-8
+from utf8_char_correction import UTF8_dict
 
 warnings.filterwarnings('ignore')
 logging.getLogger('fbprophet').setLevel(logging.WARNING)
@@ -20,25 +24,54 @@ logging.getLogger('fbprophet').setLevel(logging.WARNING)
 # caminho do script 
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
-file_operations.download_file()
-file_operations.copy_from_downloads(SCRIPT_PATH)
-
 class CovidData():
 
-    def __init__(self):
+    def __init__(self, data_source='Brasil.io', filetype='csv'):
 
         # cria Dataframe de dados brutos
-        #self.raw_df = pd.read_csv(filepath_or_buffer=os.path.join(SCRIPT_PATH, 'raw.csv'), delimiter=';')
-        self.raw_df = pd.read_excel('raw.xlsx')
-        print(self.raw_df)
-        self.correct_col_name = {'data' : 'Data',
-                                 'casosAcumulado' : 'Casos Acumulados',
-                                 'casosNovos' : 'Casos Novos',
-                                 'obitosAcumulado' : 'Óbitos Acumulados',
-                                 'obitosNovos' : 'Óbitos Novos',
-                                 'log(casosAcumulado)' : 'log(Casos Acumulados)',
-                                 'log(obitosAcumulado)' : 'log(Óbitos Acumulados)',
-                                 'Recuperadosnovos' : 'Recuperados Novos'}
+        
+        if data_source == 'Brasil.io':
+            if not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz')):
+                # Arquivo .csv não foi baixado
+                f_op.download_file_brasil_io()
+
+            # Abre o arquivo e carrega o dataframe
+            with gzip.open('data.csv.gz', 'rt', encoding='latin') as f:
+                self.raw_df = pd.read_csv(f, delimiter=',', encoding='latin', 
+                                          lineterminator='\n')
+
+            # Corrige caracteres errados por conta do UTF-8
+            for k in UTF8_dict:
+                self.raw_df['city'] = self.raw_df['city'].str.replace(k, UTF8_dict[k])
+
+            self.correct_col_name = {'date' : 'Data',
+                                    'last_available_confirmed' : 'last_available_confirmed',
+                                    'last_available_confirmed_per_100k_inhabitants' : 'last_available_confirmed_per_100k_inhabitants',
+                                    'last_available_death_rate' : 'last_available_death_rate',
+                                    'last_available_deaths' : 'last_available_deaths',
+                                    'new_confirmed' : 'new_confirmed',
+                                    'new_deaths' : 'new_deaths'}
+
+        elif data_source == 'Ministério da Saúde':
+
+            if filetype == 'xlsx':
+                self.raw_df = pd.read_excel('raw.xlsx')
+            elif filetype == 'csv':
+                self.raw_df = pd.read_csv('raw.csv', delimiter=';')
+
+            self.raw_df.columns = ['region', 'state', 'city', 'coduf', 'codmun', 'codRegiaoSaude',
+                                   'nomeRegiaoSaude', 'date', 'semanaEpi', 'populacaoTCU2019',
+                                   'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
+                                   'Recuperadosnovos', 'emAcompanhamentoNovos', 'interior/metropolitana']
+
+            self.correct_col_name = {'date' : 'Data',
+                                    'casosAcumulado' : 'Casos Acumulados',
+                                    'casosNovos' : 'Casos Novos',
+                                    'obitosAcumulado' : 'Óbitos Acumulados',
+                                    'obitosNovos' : 'Óbitos Novos',
+                                    'log(casosAcumulado)' : 'log(Casos Acumulados)',
+                                    'log(obitosAcumulado)' : 'log(Óbitos Acumulados)',
+                                    'Recuperadosnovos' : 'Recuperados Novos'}
     
     # -------------------------------------------------------------------------------------------------------
 
@@ -47,20 +80,30 @@ class CovidData():
         '''
         (String, string, string) -> Dataframe
         Faz uma query ao dataframe de dados brutos para uma região, estado e cidade e retorna o resultado. '''
-
-        query_string = 'regiao == "%s"' % region
         
+        query_terms = []
+
+        if 'region' in self.raw_df.columns:
+            # dados do min. da saude
+            query_terms.append('region == "%s"' % region)
+
         if state == '':
-            query_string += ' and estado.isnull()'
+            query_terms.append('state.isnull()')
         else:
-            query_string += ' and estado == "%s"' % state
+            query_terms.append('state == "%s"' % state)
         
         if city == '':
-            query_string += ' and municipio.isnull() and codmun.isnull()'
-        else:
-            query_string += ' and municipio == "%s"' % city
+            if 'codmun' in self.raw_df.columns:
+                query_terms.append('city.isnull() and codmun.isnull()')
+            else:
+                query_terms.append('city.isnull()')
 
-        return self.raw_df.query(query_string)
+        else:
+            query_terms.append('city == "%s"' % city)
+
+        query_string = ' and '.join(query_terms)
+        
+        return self.raw_df.query(query_string, engine='python')
         
     # -------------------------------------------------------------------------------------------------------
 
@@ -71,11 +114,15 @@ class CovidData():
         df = self.query_df(region, state, city)
 
         # corrige o formato de leitura das datas
-        df['data'] = pd.to_datetime(df['data'], dayfirst=True)
+        df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
         # cria colunas de dados log-transformados
-        df['log(casosAcumulado)'] = np.log(df['casosAcumulado'])
-        df['log(obitosAcumulado)'] = np.log(df['obitosAcumulado'])
+        if 'casosAcumulado' in df.columns:
+            df['log(casosAcumulado)'] = np.log(df['casosAcumulado'])
+            df['log(obitosAcumulado)'] = np.log(df['obitosAcumulado'])
+        else:
+            df['log(last_available_confirmed)'] = np.log(df['last_available_confirmed'])
+            df['log(last_available_deaths)'] = np.log(df['last_available_deaths'])
 
         # substitui possíveis np.inf por np.nan
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -84,7 +131,7 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_column(self, column, region, state='', city='', ax=None):
+    def plot_column(self, column, region='', state='', city='', ax=None):
 
         '''(String, String, String, String) -> None
         Plota o gráfico de uma métrica em um local selecionado'''
@@ -104,7 +151,7 @@ class CovidData():
             formatter = AutoDateFormatter(locator)
             ax.xaxis.set_major_locator(locator)
             ax.xaxis.set_major_formatter(formatter)
-            ax.plot(df['data'], df[column], label='%s | %s' % (self.correct_col_name[column], self.format_location(region, state, city)))
+            ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[column], self.format_location( [region, state, city] ) ) )
             
             if show:
                 fig.legend()
@@ -129,12 +176,13 @@ class CovidData():
     
     # -------------------------------------------------------------------------------------------------------
 
-    def format_location(self, region, state, city):
-
-        formatted_location = region
-        if state != '': formatted_location += ' - %s' % state
-        if city != '': formatted_location += ' - %s' % city
-        return formatted_location
+    def format_location(self, loc_list):
+        
+        location_terms = []
+        for loc in loc_list:
+            if loc != '': location_terms.append(loc)
+        
+        return ' - '.join(location_terms)
 
     # -------------------------------------------------------------------------------------------------------
 
@@ -165,13 +213,13 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def fit(self, column, region, state='', city='', pred_periods=30, seasonality_mode='additive', **kwargs):
+    def fit(self, column, region='', state='', city='', pred_periods=30, seasonality_mode='additive', **kwargs):
         
         '''(String, String, String, String, Int) -> None
         Usa o Prophet para prever n dias e plotar o gráfico de uma métrica em um local selecionado'''
         
         df = self.get_df(region, state, city)
-        df = df[['data', column]]
+        df = df[['date', column]]
         df.columns = ['ds', 'y']
 
         if not df.empty:
@@ -184,15 +232,20 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
        
-    def fit_compare(self, column, region, state='', city='', compare_periods=60, pred_periods=30, seasonality_mode='additive'):
+    def fit_compare(self, column, region='', state='', city='', compare_periods=60, pred_periods=30, seasonality_mode='additive'):
         
         ''' (String, String, String, String, Int, Int) -> None
         Faz previsões usando intervalos do dataframe e as plota em um mesmo gráfico
         '''
         
         df = self.get_df(region, state, city)
-        df = df[['data', column]]
+        df = df[['date', column]]
+
+        # garante que os dados descontinuos do Brasil.io não façam pular indices
+        df.reset_index(drop=True, inplace=True)
+
         df.columns = ['ds', 'y']
+
 
         if not df.empty:
             indexes = list(range(0, df.last_valid_index(), compare_periods))
@@ -279,7 +332,7 @@ class CovidData():
 
         str_out = 'No data found for region = "%s"' % region
         if state != '':
-            str_out += ' and region = "%s"' % state
+            str_out += ' and state = "%s"' % state
         if city != '':
             str_out += ' and city = "%s"' % city
 
@@ -287,11 +340,10 @@ class CovidData():
 
 def main():
 
-    data = CovidData()
-
-    #data.plot_column('casosNovos', region='Brasil')
-    #data.plot_compare('log(casosAcumulado)', [('Brasil','',''), ('Sudeste', 'SP', ''), ('Sudeste', 'SP', 'Santo André')])
-    #data.fit(column='obitosNovos', region='Brasil', pred_periods=120, seasonality_mode='multiplicative')
-    #data.fit_compare(column='log(casosAcumulado)', region='Brasil', state='', city='', pred_periods=100)
+    data = CovidData(data_source='Brasil.io', filetype='csv')
+    #data.plot_column('new_confirmed', state='SP', city='São Paulo')
+    #data.plot_compare('new_confirmed', [('','SP','São Paulo'), ('', 'SP', 'Santo André'), ('', 'SP', 'São Caetano do Sul')])
+    #data.fit(column='new_confirmed', state='SP', city='São Paulo', pred_periods=120, seasonality_mode='multiplicative')
+    #data.fit_compare(column='new_confirmed', state='SP', city='São Paulo', pred_periods=100, seasonality_mode='multiplicative')
 
 main()
