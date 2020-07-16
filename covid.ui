@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>577</width>
+    <height>346</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Covid-19 com FBProphet</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>30</y>
+      <width>251</width>
+      <height>271</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QLabel" name="label_region">
+       <property name="text">
+        <string>Região(ões)</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_region"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_state">
+       <property name="text">
+        <string>Estado(s)</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_state"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_city">
+       <property name="text">
+        <string>Cidade(s)</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit_city"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_metric">
+       <property name="text">
+        <string>Métrica</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBox_metric"/>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QWidget" name="verticalLayoutWidget_2">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>30</y>
+      <width>190</width>
+      <height>81</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QRadioButton" name="radio_MinSaude">
+       <property name="text">
+        <string>Usar dados do Ministério da Saúde</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="radio_Brasil_io">
+       <property name="text">
+        <string>Usar Dados do Brasil.io</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QWidget" name="verticalLayoutWidget_3">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>120</y>
+      <width>191</width>
+      <height>67</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <item>
+      <widget class="QLabel" name="label_chart_type">
+       <property name="text">
+        <string>Tipo de Gráfico</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBox_chart_type"/>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QPushButton" name="pushButton_execute">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>240</y>
+      <width>121</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Executar</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>577</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuArquivo">
+    <property name="title">
+     <string>Arquivo</string>
+    </property>
+    <addaction name="action_UpdateMinSaude"/>
+    <addaction name="action_UpdateBrasil_io"/>
+   </widget>
+   <addaction name="menuArquivo"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_UpdateMinSaude">
+   <property name="text">
+    <string>Atualizar dados - Min Saúde</string>
+   </property>
+  </action>
+  <action name="action_UpdateBrasil_io">
+   <property name="text">
+    <string>Atualizar dados - Brasil.io</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

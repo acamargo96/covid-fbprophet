@@ -28,67 +28,86 @@ SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class CovidData():
 
-    def __init__(self, data_source='Brasil.io', donwload_new=False):
+    def __init__(self, download_new=False):
+        
+        self.df_min_saude = self.create_df('Ministério da Saúde', download_new)
+        self.df_brasil_io = self.create_df('Brasil.io', download_new)
 
-        # cria Dataframe de dados brutos
+        self.correct_col_name = { 
+            
+            'Brasil.io' : {
+                'date' : 'Data',
+                'last_available_confirmed' : 'last_available_confirmed',
+                'last_available_confirmed_per_100k_inhabitants' : 'last_available_confirmed_per_100k_inhabitants',
+                'last_available_death_rate' : 'last_available_death_rate',
+                'last_available_deaths' : 'last_available_deaths',
+                'new_confirmed' : 'new_confirmed',
+                'new_deaths' : 'new_deaths'
+                           },
+
+            'Ministério da Saúde' : {
+                'date' : 'Data',
+                'casosAcumulado' : 'Casos Acumulados',
+                'casosNovos' : 'Casos Novos',
+                'obitosAcumulado' : 'Óbitos Acumulados',
+                'obitosNovos' : 'Óbitos Novos',
+                'log(casosAcumulado)' : 'log(Casos Acumulados)',
+                'log(obitosAcumulado)' : 'log(Óbitos Acumulados)',
+                'Recuperadosnovos' : 'Recuperados Novos'}
+        }
+    
+    # -------------------------------------------------------------------------------------------------------
+    def create_df(self, data_source, download_new):
+
         if data_source == 'Brasil.io':
-            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz'))) or donwload_new:
+            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz'))) or download_new:
                 # Arquivo .csv não foi baixado ou o usuário especificou um novo download
                 f_op.download_file_brasil_io()
 
             # Abre o arquivo e carrega o dataframe
             with gzip.open('data.csv.gz', 'rt', encoding='latin') as f:
-                self.raw_df = pd.read_csv(f, delimiter=',', encoding='latin', 
-                                          lineterminator='\n')
+                df = pd.read_csv(f, delimiter=',', encoding='latin', lineterminator='\n')
 
             # Corrige caracteres errados por conta do UTF-8
             for k in UTF8_dict:
-                self.raw_df['city'] = self.raw_df['city'].str.replace(k, UTF8_dict[k])
-
-            self.correct_col_name = {'date' : 'Data',
-                                    'last_available_confirmed' : 'last_available_confirmed',
-                                    'last_available_confirmed_per_100k_inhabitants' : 'last_available_confirmed_per_100k_inhabitants',
-                                    'last_available_death_rate' : 'last_available_death_rate',
-                                    'last_available_deaths' : 'last_available_deaths',
-                                    'new_confirmed' : 'new_confirmed',
-                                    'new_deaths' : 'new_deaths'}
+                df['city'] = df['city'].str.replace(k, UTF8_dict[k])
 
         elif data_source == 'Ministério da Saúde':
 
-            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'raw.csv'))) or donwload_new:
+            if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'raw.csv'))) or download_new:
                 # Arquivo .xlsx não foi baixado ou convertido ou usuário quer baixar novo
                 # Baixa, move e converte para .csv
                 f_op.download_file_min_saude()
                 f_op.move_xlsx_to(SCRIPT_PATH)
 
-            self.raw_df = pd.read_csv('raw.csv', delimiter=',', encoding='latin', 
-                                      lineterminator='\n')
+            df = pd.read_csv('raw.csv', delimiter=',', encoding='latin', lineterminator='\n')
+            
+            df.columns = ['region', 'state', 'city', 'coduf', 'codmun', 'codRegiaoSaude',
+                          'nomeRegiaoSaude', 'date', 'semanaEpi', 'populacaoTCU2019',
+                          'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
+                          'Recuperadosnovos', 'emAcompanhamentoNovos', 'interior/metropolitana']
+           
+        else:
+            return None
+        
+        return df
 
-            self.raw_df.columns = ['region', 'state', 'city', 'coduf', 'codmun', 'codRegiaoSaude',
-                                'nomeRegiaoSaude', 'date', 'semanaEpi', 'populacaoTCU2019',
-                                'casosAcumulado', 'casosNovos', 'obitosAcumulado', 'obitosNovos',
-                                'Recuperadosnovos', 'emAcompanhamentoNovos', 'interior/metropolitana']
-
-            self.correct_col_name = {'date' : 'Data',
-                                    'casosAcumulado' : 'Casos Acumulados',
-                                    'casosNovos' : 'Casos Novos',
-                                    'obitosAcumulado' : 'Óbitos Acumulados',
-                                    'obitosNovos' : 'Óbitos Novos',
-                                    'log(casosAcumulado)' : 'log(Casos Acumulados)',
-                                    'log(obitosAcumulado)' : 'log(Óbitos Acumulados)',
-                                    'Recuperadosnovos' : 'Recuperados Novos'}
-    
     # -------------------------------------------------------------------------------------------------------
 
-    def query_df(self, region, state, city):
+    def query_df(self, region, state, city, data_source):
         
         '''
         (String, string, string) -> Dataframe
         Faz uma query ao dataframe de dados brutos para uma região, estado e cidade e retorna o resultado. '''
         
+        if data_source == 'Ministério da Saúde':
+            df = self.df_min_saude
+        elif data_source == 'Brasil.io':
+            df = self.df_brasil_io
+
         query_terms = []
 
-        if 'region' in self.raw_df.columns:
+        if 'region' in df.columns:
             # dados do min. da saude
             query_terms.append('region == "%s"' % region)
 
@@ -98,7 +117,7 @@ class CovidData():
             query_terms.append('state == "%s"' % state)
         
         if city == '':
-            if 'codmun' in self.raw_df.columns:
+            if 'codmun' in df.columns:
                 query_terms.append('city.isnull() and codmun.isnull()')
             else:
                 query_terms.append('city.isnull()')
@@ -107,19 +126,19 @@ class CovidData():
             query_terms.append('city == "%s"' % city)
 
         query_string = ' and '.join(query_terms)
-        
-        return self.raw_df.query(query_string, engine='python')
+  
+        return df.query(query_string, engine='python')
         
     # -------------------------------------------------------------------------------------------------------
 
-    def get_df(self, region, state, city):
+    def get_df(self, region, state, city, data_source):
         
         ''' None -> Dataframe (ou None)
         Retorna uma cópia do Dataframe do local selecionado com as colunas "data" e a inserida pelo usuário '''
-        df = self.query_df(region, state, city)
+        df = self.query_df(region, state, city, data_source)
 
         # corrige o formato de leitura das datas
-        df['date'] = pd.to_datetime(df['date'], dayfirst=True)
+        df['date'] = pd.to_datetime(df['date']) #, dayfirst=True)
 
         # cria colunas de dados log-transformados
         if 'casosAcumulado' in df.columns:
@@ -131,19 +150,19 @@ class CovidData():
 
         # substitui possíveis np.inf por np.nan
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
-
+        
         return df
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_column(self, column, region='', state='', city='', ax=None):
+    def plot_column(self, column, region='', state='', city='', ax=None, data_source='Ministério da Saúde'):
 
         '''(String, String, String, String) -> None
         Plota o gráfico de uma métrica em um local selecionado'''
 
-        if self.valid_col(column):    
+        if self.valid_col(column, data_source):    
 
-            df = self.get_df(region, state, city)
+            df = self.get_df(region, state, city, data_source)
 
             if not df.empty:
                 if ax is None:
@@ -158,7 +177,7 @@ class CovidData():
                 formatter = AutoDateFormatter(locator)
                 ax.xaxis.set_major_locator(locator)
                 ax.xaxis.set_major_formatter(formatter)
-                ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[column], self.format_location( [region, state, city] ) ) )
+                ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[data_source][column], self.format_location( [region, state, city] ) ) )
                 
                 if show:
                     fig.legend()
@@ -167,30 +186,30 @@ class CovidData():
                 print(self.not_found_msg(region, state, city))
 
         else:
-            valid_vals = [k for k in self.correct_col_name if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (column, '\n- '.join(valid_vals) ))
+            valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_compare(self, column, location_list):
+    def plot_compare(self, column, location_list, data_source='Ministério da Saúde'):
         '''
         location_list é uma lista com tuples (region, state, city) '''
 
-        if self.valid_col(column):
+        if self.valid_col(column, data_source):
             fig = plt.figure(facecolor='w', figsize=(10,6))
             ax = fig.add_subplot(111)
 
             for location in location_list:
-                self.plot_column(column, location[0], location[1], location[2], ax=ax)
+                self.plot_column(column, location[0], location[1], location[2], ax=ax, data_source=data_source)
             
             fig.legend()
             plt.show()   
         
         else:
-            valid_vals = [k for k in self.correct_col_name if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (column, '\n- '.join(valid_vals) ))
+            valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
 
@@ -231,14 +250,15 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def fit(self, column, region='', state='', city='', pred_periods=30, seasonality_mode='additive', **kwargs):
+    def fit(self, column, region='', state='', city='', pred_periods=30, 
+            seasonality_mode='additive', data_source='Ministério da Saúde'):
         
         '''(String, String, String, String, Int) -> None
         Usa o Prophet para prever n dias e plotar o gráfico de uma métrica em um local selecionado'''
         
-        if self.valid_col(column):
+        if self.valid_col(column, data_source):
 
-            df = self.get_df(region, state, city)
+            df = self.get_df(region, state, city, data_source)
             df = df[['date', column]]
             df.columns = ['ds', 'y']
 
@@ -251,21 +271,22 @@ class CovidData():
                 print(self.not_found_msg(region, state, city))
         
         else:
-            valid_vals = [k for k in self.correct_col_name if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (column, '\n- '.join(valid_vals) ))
+            valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
+            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
        
-    def fit_compare(self, column, region='', state='', city='', compare_periods=60, pred_periods=30, seasonality_mode='additive'):
+    def fit_compare(self, column, region='', state='', city='', compare_periods=60, 
+                    pred_periods=30, seasonality_mode='additive', data_source='Ministério da Saúde'):
         
         ''' (String, String, String, String, Int, Int) -> None
         Faz previsões usando intervalos do dataframe e as plota em um mesmo gráfico
         '''
 
-        if self.valid_col(column):
+        if self.valid_col(column, data_source):
         
-            df = self.get_df(region, state, city)
+            df = self.get_df(region, state, city, data_source)
             df = df[['date', column]]
 
             # garante que os dados descontinuos do Brasil.io não façam pular indices
@@ -312,13 +333,13 @@ class CovidData():
         
         else: # coluna inválida
             valid_vals = [k for k in self.correct_col_name if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para métricas. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (column, '\n- '.join(valid_vals) ))
+            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
+                  % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
         
     def prophet_plot(self, m, fcst, ax=None, uncertainty=True, plot_cap=True, xlabel='ds', ylabel='y',
-    plot_color='#0072B2', plot_actual=True, label='N Periods', figsize=(10, 6)):
+                    plot_color='#0072B2', plot_actual=True, label='N Periods', figsize=(10, 6)):
        
         # Método adaptado do .plot do Prophet. 
 
@@ -371,17 +392,26 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def valid_col(self, column):
+    def valid_col(self, column, data_source):
 
-        return column in self.correct_col_name and column != 'date'
+        return column in self.correct_col_name[data_source] and column != 'date'
 
+'''
 def main():
 
-    data = CovidData(data_source='Brasil.io')
-    print(data.raw_df.columns)
-    #data.plot_column('new_deaths', state='SP', city='São Paulo')
-    #data.plot_compare('new_confirmed', [('','SP','São Paulo'), ('', 'SP', 'Santo André'), ('', 'SP', 'São Caetano do Sul')])
-    #data.fit(column='new_confirmed', state='SP', city='São Paulo', pred_periods=120, seasonality_mode='multiplicative')
-    #data.fit_compare(column='new_confirmed', state='SP', city='São Paulo', pred_periods=100, seasonality_mode='multiplicative')
+    data = CovidData()
+
+    # Brasil.io
+    #data.plot_column('new_deaths', state='SP', city='São Paulo', data_source='Brasil.io')
+    #data.plot_compare('new_confirmed', [('','SP','São Paulo'), ('', 'SP', 'Santo André'), ('', 'SP', 'São Caetano do Sul')], data_source='Brasil.io')
+    #data.fit(column='new_confirmed', state='SP', city='São Paulo', pred_periods=120, seasonality_mode='multiplicative', data_source='Brasil.io')
+    #data.fit_compare(column='new_confirmed', state='SP', city='São Paulo', pred_periods=100, seasonality_mode='multiplicative', data_source='Brasil.io')
+
+    # Min. da Saúde
+    #data.plot_column('casosAcumulado', region='Sudeste', state='SP', city='São Paulo', data_source='Ministério da Saúde')
+    #data.plot_compare('casosAcumulado', [('Sudeste','SP','São Paulo'), ('Sudeste', 'SP', 'Santo André'), ('Sudeste', 'SP', 'São Caetano do Sul')], data_source='Ministério da Saúde')
+    #data.fit(column='casosAcumulado', region='Sudeste', state='SP', city='São Paulo', pred_periods=120, seasonality_mode='multiplicative', data_source='Ministério da Saúde')
+    #data.fit_compare(column='casosAcumulado', region='Sudeste', state='SP', city='São Paulo', pred_periods=100, seasonality_mode='multiplicative', data_source='Ministério da Saúde')
 
 main()
+'''
