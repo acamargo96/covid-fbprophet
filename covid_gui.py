@@ -97,3 +97,49 @@ class Ui_MainWindow(object):
         self.action_UpdateMinSaude.setText(_translate("MainWindow", "Atualizar dados - Min Saúde"))
         self.action_UpdateBrasil_io.setText(_translate("MainWindow", "Atualizar dados - Brasil.io"))
 
+class Ui_Dialog_Progress(object):
+    def setupUi(self, Dialog_Progress):
+        Dialog_Progress.setObjectName("Dialog_Progress")
+        Dialog_Progress.resize(300, 100)
+        Dialog_Progress.setMaximumSize(QtCore.QSize(300, 100))
+        self.progressBar = QtWidgets.QProgressBar(Dialog_Progress)
+        self.progressBar.setGeometry(QtCore.QRect(20, 10, 261, 23))
+        self.progressBar.setProperty("value", 24)
+        self.progressBar.setObjectName("progressBar")
+        self.label_dialog = QtWidgets.QLabel(Dialog_Progress)
+        self.label_dialog.setGeometry(QtCore.QRect(20, 40, 251, 51))
+        self.label_dialog.setObjectName("label_dialog")
+
+        self.retranslateUi(Dialog_Progress)
+        QtCore.QMetaObject.connectSlotsByName(Dialog_Progress)
+
+    def retranslateUi(self, Dialog_Progress):
+        _translate = QtCore.QCoreApplication.translate
+        Dialog_Progress.setWindowTitle(_translate("Dialog_Progress", "TITLE"))
+        self.label_dialog.setText(_translate("Dialog_Progress", "TextLabel"))
+
+class Ui_Messagebox(object):
+    def setupUi(self, Messagebox):
+        Messagebox.setObjectName("Messagebox")
+        Messagebox.resize(300, 200)
+        Messagebox.setMinimumSize(QtCore.QSize(300, 200))
+        Messagebox.setMaximumSize(QtCore.QSize(300, 200))
+        self.buttonBox = QtWidgets.QDialogButtonBox(Messagebox)
+        self.buttonBox.setGeometry(QtCore.QRect(30, 150, 251, 32))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.label_msgbox_text = QtWidgets.QLabel(Messagebox)
+        self.label_msgbox_text.setGeometry(QtCore.QRect(30, 30, 241, 101))
+        self.label_msgbox_text.setObjectName("label_msgbox_text")
+
+        self.retranslateUi(Messagebox)
+        self.buttonBox.accepted.connect(Messagebox.accept)
+        self.buttonBox.rejected.connect(Messagebox.reject)
+        QtCore.QMetaObject.connectSlotsByName(Messagebox)
+
+    def retranslateUi(self, Messagebox):
+        _translate = QtCore.QCoreApplication.translate
+        Messagebox.setWindowTitle(_translate("Messagebox", "TITLE"))
+        self.label_msgbox_text.setText(_translate("Messagebox", "TextLabel"))
+

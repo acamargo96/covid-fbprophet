@@ -1,32 +1,60 @@
-from PyQt5 import QtWidgets
-from covid_gui import Ui_MainWindow
+from PyQt5 import QtWidgets, QtGui
+from covid_gui import Ui_MainWindow, Ui_Dialog_Progress, Ui_Messagebox
+
 import sys
+import os
+from time import sleep
+
 from main import CovidData
+import file_operations as f_op
+
+SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class Window(QtWidgets.QMainWindow):
 
     def __init__(self):
 
+        self.progressbar_box = ProgressBarBox()
+        self.progressbar_box.show()
+
+        self.messagebox = MessageBox()
+
         # Carrega dados
-        self.covid_data = CovidData()
+        self.progressbar_box._update('Carregando dados...', 0)
+        self.progressbar_box.update_title('Carregando...')
+
+        self.covid_data = CovidData(dialog=self.progressbar_box)
+
+        self.progressbar_box._update('Configurando interface...', 56)
 
         super(Window, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
         # associa os botões a métodos relevantes
+        self.progressbar_box._update('Configurando interface...', 64)
         self.ui.pushButton_execute.clicked.connect(self.execute)
 
         # tipos de gráfico
+        self.progressbar_box._update('Configurando interface...', 72)
         self.ui.comboBox_chart_type.addItems(['Dados observados','Previsão','Previsões Comparadas'])
-        
+
+        self.progressbar_box._update('Configurando interface...', 80)
         self.ui.radio_MinSaude.toggled.connect(self.change_metric_list)
         self.ui.radio_Brasil_io.toggled.connect(self.change_metric_list)
 
+        self.progressbar_box._update('Configurando interface...', 88)
         self.ui.radio_MinSaude.setChecked(True)
 
-    # -------------------------------------------------------------------------------------------------------
+        self.ui.action_UpdateBrasil_io.triggered.connect(self.update_data)
+        self.ui.action_UpdateMinSaude.triggered.connect(self.update_data)
 
+        self.progressbar_box._update('Configurando interface...', 100)
+        self.progressbar_box.close()
+
+
+
+    # -------------------------------------------------------------------------------------------------------
     def execute(self):
         # método principal
         location_list = self.get_inputs()
@@ -35,7 +63,7 @@ class Window(QtWidgets.QMainWindow):
         data_source = self.get_data_source()
 
         if len(location_list) == 0:
-            print('Nenhum local inserido!')
+            self.messagebox.show_message('Nenhum local inserido!', type='Aviso')
         
         else:
             if len(location_list) == 1:
@@ -61,8 +89,8 @@ class Window(QtWidgets.QMainWindow):
                     # Mostrar dados observados de mais de um
                     self.covid_data.plot_compare(metric, location_list, data_source=data_source)
                 else:
-                    print('Nâo é possivel obter gráficos de %s para mais de uma métrica. Tente individualmente!' % metric)
-
+                    self.messagebox.show_message('Nâo é possivel obter gráficos de %s para mais de um local. Tente individualmente!' % metric, \
+                                                 type='Erro')
 
     # -------------------------------------------------------------------------------------------------------
     def get_data_source(self):
@@ -98,7 +126,7 @@ class Window(QtWidgets.QMainWindow):
     def valid_row(self, i, table):
 
         # pelo menos um valor preenchido
-        return table.item(i,0) is not None or table.item(i,1) is not None or table.item(i,1) is not None
+        return table.item(i,0) is not None or table.item(i,1) is not None or table.item(i,2) is not None
 
     # -------------------------------------------------------------------------------------------------------
     def change_metric_list(self):
@@ -117,7 +145,81 @@ class Window(QtWidgets.QMainWindow):
                 self.ui.comboBox_metric.addItems(['last_available_confirmed', 'last_available_confirmed_per_100k_inhabitants',
                                                   'last_available_death_rate', 'last_available_deaths',
                                                   'new_confirmed', 'new_deaths'])
+
+    # -------------------------------------------------------------------------------------------------------
+    def update_data(self):
+
+        btn = self.sender()
+
+        if 'Brasil.io' in btn.text():
+            
+            self.progressbar_box.show()
+            f_op.download_file_brasil_io(dialog=self.progressbar_box)
+            self.progressbar_box._update('Dados atualizados!', 100)
+            sleep(1)
+            self.progressbar_box.close()
+
+        else:
+
+            self.progressbar_box.show()
+            f_op.download_file_min_saude(dialog=self.progressbar_box)
+            self.progressbar_box._update('Movendo e convertendo arquivo...', 75)
+            f_op.move_xlsx_to(SCRIPT_PATH)
+            self.progressbar_box._update('Dados atualizados!', 100)
+            sleep(1)
+            self.progressbar_box.close()
+
+# -------------------------------------------------------------------------------------------------------
+class ProgressBarBox(QtWidgets.QDialog):
+
+    def __init__(self):
+
+        super(ProgressBarBox, self).__init__()
+        self.ui = Ui_Dialog_Progress()
+        self.ui.setupUi(self)
+
+    def _update(self, text, percentage):
+
+        self.ui.label_dialog.setText(text)
+        self.ui.progressBar.setValue(percentage)
+        QtWidgets.qApp.processEvents()
+
+    def update_title(self, title):
+
+        self.setWindowTitle(title)
+        QtWidgets.qApp.processEvents()
+
+# -------------------------------------------------------------------------------------------------------
+class MessageBox(QtWidgets.QDialog):
+
+    def __init__(self):
+
+        super(MessageBox, self).__init__()
+        self.ui = Ui_Messagebox()
+        self.ui.setupUi(self)
+
+    def show_message(self, text, type='Mensagem'):
+
+        self.ui.label_msgbox_text.setText(text)
+        self.setWindowTitle('%s do programa!' % type)
+
+        if type == 'Mensagem':
+            # fonte: https://www.flaticon.com/br/icone-gratis/consultando_1260416?term=dialog&page=1&position=73
+            self.setWindowIcon(QtGui.QIcon(os.path.join(SCRIPT_PATH, 'mensagem.png')))
+            
+        elif type == 'Aviso':
+            # fonte: https://www.flaticon.com/br/icone-gratis/aviso_595067?term=warning&page=1&position=3
+            self.setWindowIcon(QtGui.QIcon(os.path.join(SCRIPT_PATH, 'aviso.png')))
+
+        elif type == 'Erro':
+            # fonte: https://www.flaticon.com/br/icone-gratis/cancelar_753345?term=error&page=1&position=5
+            self.setWindowIcon(QtGui.QIcon(os.path.join(SCRIPT_PATH, 'erro.png')))
         
+        QtWidgets.qApp.processEvents()
+        self.ui.label_msgbox_text.setWordWrap(True)
+        
+        self.show()
+
 
 app = QtWidgets.QApplication([])
 

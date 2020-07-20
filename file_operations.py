@@ -12,21 +12,24 @@ from subprocess import call
 from time import sleep
 from datetime import datetime as dt
 
-def download_file_min_saude():
+def download_file_min_saude(dialog=None):
 
     dl_path = get_download_path()
 
     # faz download do arquivo .xlsx dos dados do min. da saude
+    if dialog is not None: dialog._update('Criando Browser...', 0)
     driver = webdriver.Chrome()
     driver.get('https://covid.saude.gov.br/')
     
     sleep(1)
-
+    if dialog is not None: dialog._update('Buscando xPath do botão...', 25)
     btn = driver.find_elements_by_xpath('/html/body/app-root/ion-app/ion-router-outlet/app-home/ion-content/div[1]/div[2]/ion-button')[0]
     btn.click()
     
     start_time = dt.now().timestamp()
     not_found = True
+
+    if dialog is not None: dialog._update('Baixando...', 50)
 
     while not_found:
 
@@ -46,9 +49,10 @@ def download_file_min_saude():
 
 # -------------------------------------------------------------------------
 
-def download_file_brasil_io():
+def download_file_brasil_io(dialog=None):
 
     # Baixa o .rar
+    if dialog is not None: dialog._update('Baixando', 50)
     url = 'https://data.brasil.io/dataset/covid19/caso_full.csv.gz'
     r = requests.get(url, allow_redirects=True)
     open('data.csv.gz', 'wb').write(r.content)
