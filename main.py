@@ -28,9 +28,11 @@ SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class CovidData():
 
-    def __init__(self, download_new=False, dialog=None):
+    def __init__(self, download_new=False, dialog=None, messagebox=None):
         
         self.dialog = dialog
+        self.messagebox = messagebox
+
         if self.dialog is not None: self.dialog._update('Criando DataFrame para dados do Ministério da Saúde...', 8)
         self.df_min_saude = self.create_df('Ministério da Saúde', download_new)
         if self.dialog is not None: self.dialog._update('Criando DataFrame para dados do Brasil.io...', 24)
@@ -163,7 +165,8 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_column(self, column, region='', state='', city='', ax=None, data_source='Ministério da Saúde'):
+    def plot_column(self, column, region='', state='', city='', ax=None, data_source='Ministério da Saúde',
+                    add_moving_average=False):
 
         '''(String, String, String, String) -> None
         Plota o gráfico de uma métrica em um local selecionado'''
@@ -186,21 +189,25 @@ class CovidData():
                 ax.xaxis.set_major_locator(locator)
                 ax.xaxis.set_major_formatter(formatter)
                 ax.plot(df['date'], df[column], label='%s | %s' % (self.correct_col_name[data_source][column], self.format_location( [region, state, city] ) ) )
+
+                if add_moving_average:
+                    ax.plot(df['date'], df[column].expanding(min_periods=60).mean(), \
+                            label='Média Móvel | %s | %s' % (self.correct_col_name[data_source][column], self.format_location( [region, state, city] ) ) )
                 
                 if show:
                     fig.legend()
                     plt.show()
             else:
-                print(self.not_found_msg(region, state, city))
+                self.messagebox.show_message(self.not_found_msg(region, state, city), type='Erro')
 
         else:
             valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (data_source, column, '\n- '.join(valid_vals) ))
+            self.messagebox.show_message('''\nO nome %s não corresponde a uma coluna válida para dados do %s. 
+            Os nomes válidos para colunas do conjunto atual são:\n- %s \n''' % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_compare(self, column, location_list, data_source='Ministério da Saúde'):
+    def plot_compare(self, column, location_list, data_source='Ministério da Saúde', add_moving_average=False):
         '''
         location_list é uma lista com tuples (region, state, city) '''
 
@@ -209,15 +216,16 @@ class CovidData():
             ax = fig.add_subplot(111)
 
             for location in location_list:
-                self.plot_column(column, location[0], location[1], location[2], ax=ax, data_source=data_source)
+                self.plot_column(column, location[0], location[1], location[2], ax=ax, 
+                                data_source=data_source, add_moving_average=add_moving_average)
             
             fig.legend()
             plt.show()   
         
         else:
             valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (data_source, column, '\n- '.join(valid_vals) ))
+            self.messagebox.show_message('''\nO nome %s não corresponde a uma coluna válida para dados do %s. 
+            Os nomes válidos para colunas do conjunto atual são:\n- %s \n''' % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
 
@@ -263,25 +271,44 @@ class CovidData():
         
         '''(String, String, String, String, Int) -> None
         Usa o Prophet para prever n dias e plotar o gráfico de uma métrica em um local selecionado'''
-        
+
+        # checa validade do período
+        message_list = []
+        if pred_periods == 0: 
+            message_list.append('Períodos de previsão muito curtos corrigidos de %d para 30 dias.' % pred_periods)
+            pred_periods = 30
+
         if self.valid_col(column, data_source):
 
+            if self.dialog is not None: 
+                self.dialog.show()
+                self.dialog._update('Consultando DataFrame...', 0)
+
             df = self.get_df(region, state, city, data_source)
+            if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 25)
             df = df[['date', column]]
+            if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 50)
             df.columns = ['ds', 'y']
 
             if not df.empty:
+                if self.dialog is not None: self.dialog._update('Criando modelo...', 75)
                 m = self.get_model(column, df, seasonality_mode=seasonality_mode)
                 m.plot(self.forecast(df, column, pred_periods, m))
+                if self.dialog is not None: 
+                    self.dialog._update('Previsão feita!', 100)
+                    self.dialog.close()
+
                 plt.show()
+                if len(message_list) != 0: self.messagebox.show_message(message_list[0])
 
             else:
-                print(self.not_found_msg(region, state, city))
+                if self.dialog is not None: self.dialog.close()
+                self.messagebox.show_message(self.not_found_msg(region, state, city), type='Erro')
         
         else:
             valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (data_source, column, '\n- '.join(valid_vals) ))
+            self.messagebox.show_message('''\nO nome %s não corresponde a uma coluna válida para dados do %s. 
+            Os nomes válidos para colunas do conjunto atual são:\n- %s \n''' % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
        
@@ -292,17 +319,33 @@ class CovidData():
         Faz previsões usando intervalos do dataframe e as plota em um mesmo gráfico
         '''
 
-        if self.valid_col(column, data_source):
-        
-            df = self.get_df(region, state, city, data_source)
-            df = df[['date', column]]
+        # checa validade dos períodos
+        message_list = []
+        if pred_periods == 0: 
+            message_list.append('Períodos de previsão muito curtos corrigidos de %d para 30 dias.' % pred_periods)
+            pred_periods = 30
+        if compare_periods < 20: 
+            message_list.append('Períodos de comparação muito curtos corrigidos de %d para 60 dias.' % compare_periods)
+            compare_periods = 60
 
+        if self.valid_col(column, data_source):
+            
+            if self.dialog is not None: 
+                self.dialog.show()
+                self.dialog._update('Consultando DataFrame...', 0)
+
+            df = self.get_df(region, state, city, data_source)
+            if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 15)
+            df = df[['date', column]]
+            if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 30)
             # garante que os dados descontinuos do Brasil.io não façam pular indices
             df.reset_index(drop=True, inplace=True)
-
+            if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 45)
             df.columns = ['ds', 'y']
 
             if not df.empty:
+
+                if self.dialog is not None: self.dialog._update('Configurando gráfico...', 60)
                 indexes = list(range(0, df.last_valid_index(), compare_periods))
                 last_index = df.last_valid_index()
                 indexes[-1] = last_index
@@ -314,7 +357,10 @@ class CovidData():
                 colors = ['#0072B2', '#F90909', '#D48888', '#BD9446', '#63FF14', '#B056EF',
                         '#FF9C09', '#669677', '#8F6696', '#EEAD0E']
 
+                line_count = 1
+
                 for i in indexes:
+                    if self.dialog is not None: self.dialog._update('Criando modelo %d de %d...' % (line_count, len(indexes)), 60 + 40 * (line_count - 1) / len(indexes))
                     # plots actual data on last value
                     if i == indexes[-1]: 
                         plot_actual = True
@@ -331,18 +377,27 @@ class CovidData():
 
                     self.prophet_plot(m, self.forecast(sub_df, column, num_forecasts, m), ax=ax,
                                     plot_color=plot_color, plot_actual=plot_actual, 
-                                    label='Using %d periods' % len(sub_df))
+                                    label='Usando %d períodos' % len(sub_df))
+
+                    line_count += 1
                 
+                if self.dialog is not None: 
+                    self.dialog._update('Previsões criadas!', 100)
+                    self.dialog.close()
+
                 fig.legend()
                 plt.show()
 
+                if len(message_list) != 0: self.messagebox.show_message('\n\n'.join(message_list))
+
             else: # df está vazio
-                print(self.not_found_msg(region, state, city))
+                if self.dialog is not None: self.dialog.close()
+                self.messagebox.show_message(self.not_found_msg(region, state, city), type='Erro')
         
         else: # coluna inválida
-            valid_vals = [k for k in self.correct_col_name if k != 'date']
-            print('\nO nome %s não corresponde a uma coluna válida para dados do %s. Os nomes válidos para colunas do conjunto atual são:\n- %s \n' \
-                  % (data_source, column, '\n- '.join(valid_vals) ))
+            valid_vals = [k for k in self.correct_col_name[data_source] if k != 'date']
+            self.messagebox.show_message('''\nO nome %s não corresponde a uma coluna válida para dados do %s. 
+            Os nomes válidos para colunas do conjunto atual são:\n- %s \n''' % (data_source, column, '\n- '.join(valid_vals) ))
 
     # -------------------------------------------------------------------------------------------------------
         
@@ -390,11 +445,11 @@ class CovidData():
 
         # Retorna uma mensagem de qual local não foi encontrado no dataframe de dados brutos
 
-        str_out = 'No data found for region = "%s"' % region
+        str_out = 'Nenhum dado foi encontrado para região = "%s"' % region
         if state != '':
-            str_out += ' and state = "%s"' % state
+            str_out += ' e estado = "%s"' % state
         if city != '':
-            str_out += ' and city = "%s"' % city
+            str_out += ' e cidade = "%s"' % city
 
         return str_out
 
@@ -403,6 +458,7 @@ class CovidData():
     def valid_col(self, column, data_source):
 
         return column in self.correct_col_name[data_source] and column != 'date'
+
 
 '''
 def main():

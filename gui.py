@@ -4,6 +4,7 @@ from covid_gui import Ui_MainWindow, Ui_Dialog_Progress, Ui_Messagebox
 import sys
 import os
 from time import sleep
+from pandas import to_datetime
 
 from main import CovidData
 import file_operations as f_op
@@ -23,7 +24,7 @@ class Window(QtWidgets.QMainWindow):
         self.progressbar_box._update('Carregando dados...', 0)
         self.progressbar_box.update_title('Carregando...')
 
-        self.covid_data = CovidData(dialog=self.progressbar_box)
+        self.covid_data = CovidData(dialog=self.progressbar_box, messagebox=self.messagebox)
 
         self.progressbar_box._update('Configurando interface...', 56)
 
@@ -52,15 +53,27 @@ class Window(QtWidgets.QMainWindow):
         self.progressbar_box._update('Configurando interface...', 100)
         self.progressbar_box.close()
 
-
-
     # -------------------------------------------------------------------------------------------------------
     def execute(self):
+
         # método principal
         location_list = self.get_inputs()
         metric = self.ui.comboBox_metric.currentText()
         chart_type = self.ui.comboBox_chart_type.currentText()
         data_source = self.get_data_source()
+        add_moving_average = self.ui.checkBox_moving_avg.isChecked()
+        
+        initial_date = self.ui.dateEdit_initial.date().toPyDate()
+        end_date = self.ui.dateEdit_end.date().toPyDate()
+        pred_periods = self.ui.spinBox_pred_periods.value()
+        comp_periods = self.ui.spinBox_comp_periods.value()
+            
+        # checa datas
+        if initial_date > end_date:
+            # necessário trocar valores
+            aux_date = initial_date
+            initial_date = end_date
+            end_date = aux_date
 
         if len(location_list) == 0:
             self.messagebox.show_message('Nenhum local inserido!', type='Aviso')
@@ -73,21 +86,23 @@ class Window(QtWidgets.QMainWindow):
 
                 if chart_type == 'Dados observados':
                     # Mostrar dados observados de 1 só
-                    self.covid_data.plot_column(metric, region=location[0], state=location[1], city=location[2], data_source=data_source)
+                    self.covid_data.plot_column(metric, region=location[0], state=location[1], city=location[2], 
+                                                data_source=data_source, add_moving_average=add_moving_average)
                     
                 elif chart_type == 'Previsão':
                     # Mostrar previsão
-                    self.covid_data.fit(metric, region=location[0], state=location[1], city=location[2], data_source=data_source) 
-                    # TODO: colocar algum local na gui p/ os pred_periods
+                    self.covid_data.fit(metric, region=location[0], state=location[1], city=location[2], 
+                                        pred_periods=pred_periods, data_source=data_source) 
 
                 else:
                     # Comparar previsões
-                    self.covid_data.fit_compare(metric, region=location[0], state=location[1], city=location[2], data_source=data_source)
+                    self.covid_data.fit_compare(metric, region=location[0], state=location[1], city=location[2], 
+                                                compare_periods=comp_periods, pred_periods=pred_periods, data_source=data_source)
 
             else:
                 if chart_type == 'Dados observados':
                     # Mostrar dados observados de mais de um
-                    self.covid_data.plot_compare(metric, location_list, data_source=data_source)
+                    self.covid_data.plot_compare(metric, location_list, data_source=data_source, add_moving_average=add_moving_average)
                 else:
                     self.messagebox.show_message('Nâo é possivel obter gráficos de %s para mais de um local. Tente individualmente!' % metric, \
                                                  type='Erro')
@@ -140,12 +155,28 @@ class Window(QtWidgets.QMainWindow):
                 self.ui.comboBox_metric.addItems(['casosAcumulado', 'casosNovos','obitosAcumulado',
                                                   'obitosNovos', 'log(casosAcumulado)',
                                                   'log(obitosAcumulado)', 'Recuperadosnovos'])
+                
+                self.config_dates(self.covid_data.df_min_saude)
 
             else:
                 self.ui.comboBox_metric.addItems(['last_available_confirmed', 'last_available_confirmed_per_100k_inhabitants',
                                                   'last_available_death_rate', 'last_available_deaths',
                                                   'new_confirmed', 'new_deaths'])
+                self.config_dates(self.covid_data.df_brasil_io)
 
+
+    # -------------------------------------------------------------------------------------------------------
+    def config_dates(self, df):
+        
+        min_date = to_datetime(df['date']).min()
+        max_date = to_datetime(df['date']).max()
+
+        for dateEdit in [self.ui.dateEdit_initial, self.ui.dateEdit_end]:
+            dateEdit.setMinimumDate(min_date)
+            dateEdit.setMaximumDate(max_date)
+
+        self.ui.dateEdit_end.setDate(max_date)
+        
     # -------------------------------------------------------------------------------------------------------
     def update_data(self):
 
@@ -159,6 +190,10 @@ class Window(QtWidgets.QMainWindow):
             sleep(1)
             self.progressbar_box.close()
 
+            self.covid_data = CovidData(dialog=self.progressbar_box)
+
+            self.messagebox.show_message('Dados do Brasil.io atualizados com sucesso!')
+
         else:
 
             self.progressbar_box.show()
@@ -168,6 +203,10 @@ class Window(QtWidgets.QMainWindow):
             self.progressbar_box._update('Dados atualizados!', 100)
             sleep(1)
             self.progressbar_box.close()
+
+            self.covid_data = CovidData(dialog=self.progressbar_box)
+
+            self.messagebox.show_message('Dados do Ministério da Saúde atualizados com sucesso!')
 
 # -------------------------------------------------------------------------------------------------------
 class ProgressBarBox(QtWidgets.QDialog):

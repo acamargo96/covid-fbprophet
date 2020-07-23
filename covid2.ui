@@ -6,9 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>613</width>
-    <height>396</height>
+    <width>812</width>
+    <height>391</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>812</width>
+    <height>391</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>812</width>
+    <height>391</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Covid-19 com FBProphet</string>
@@ -19,7 +31,7 @@
      <rect>
       <x>400</x>
       <y>40</y>
-      <width>190</width>
+      <width>191</width>
       <height>81</height>
      </rect>
     </property>
@@ -76,7 +88,7 @@
     <property name="geometry">
      <rect>
       <x>430</x>
-      <y>260</y>
+      <y>290</y>
       <width>121</width>
       <height>51</height>
      </rect>
@@ -213,13 +225,84 @@
      </property>
     </column>
    </widget>
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>400</x>
+      <y>240</y>
+      <width>191</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QCheckBox" name="checkBox_moving_average">
+       <property name="text">
+        <string>Incluir Média Móvel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QWidget" name="verticalLayoutWidget_4">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>40</y>
+      <width>181</width>
+      <height>231</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Data Inicial </string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDateEdit" name="dateEdit_initial"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Data Final</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDateEdit" name="dateEdit_end"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Períodos para Prever</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spinBox_pred_periods"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Períodos para Comparar Previsões</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spinBox_comp_periods"/>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>613</width>
+     <width>812</width>
      <height>21</height>
     </rect>
    </property>
