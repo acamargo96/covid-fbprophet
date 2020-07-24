@@ -28,14 +28,24 @@ SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class CovidData():
 
-    def __init__(self, download_new=False, dialog=None, messagebox=None):
+    def __init__(self, download_new=False, dialog=None, messagebox=None, splash_screen=None):
         
         self.dialog = dialog
         self.messagebox = messagebox
+        self.splash_screen = splash_screen
 
-        if self.dialog is not None: self.dialog._update('Criando DataFrame para dados do Ministério da Saúde...', 8)
+        # acompanhamento de progresso p/ o usuário
+        if self.dialog is not None: 
+            self.dialog.update_title('Criando DataFrames')
+            self.dialog._update('Criando DataFrame para dados do Ministério da Saúde...', 8)
+
+        if self.splash_screen is not None: self.splash_screen.update_text('Criando DataFrame para dados do Ministério da Saúde...')
+
         self.df_min_saude = self.create_df('Ministério da Saúde', download_new)
+        
         if self.dialog is not None: self.dialog._update('Criando DataFrame para dados do Brasil.io...', 24)
+        if self.splash_screen is not None: self.splash_screen.update_text('Criando DataFrame para dados do Brasil.io...')
+
         self.df_brasil_io = self.create_df('Brasil.io', download_new)
 
         self.correct_col_name = { 
@@ -67,16 +77,21 @@ class CovidData():
         if data_source == 'Brasil.io':
             if (not os.path.isfile(os.path.join(SCRIPT_PATH, 'data.csv.gz'))) or download_new:
                 # Arquivo .csv não foi baixado ou o usuário especificou um novo download
-                if self.dialog is not None: self.dialog._update('Baixando arquivo do Brasil.io...', 32)
+                #if self.dialog is not None: self.dialog._update('Baixando arquivo do Brasil.io...', 32)
+                if self.splash_screen is not None: self.splash_screen.update_text('Baixando arquivo do Brasil.io...')
                 f_op.download_file_brasil_io()
 
             # Abre o arquivo e carrega o dataframe
             if self.dialog is not None: self.dialog._update('Lendo .csv do Brasil.io...', 40)
+            if self.splash_screen is not None: self.splash_screen.update_text('Lendo arquivo do Brasil.io...')
+
             with gzip.open('data.csv.gz', 'rt', encoding='latin') as f:
                 df = pd.read_csv(f, delimiter=',', encoding='latin', lineterminator='\n')
 
             # Corrige caracteres errados por conta do UTF-8
             if self.dialog is not None: self.dialog._update('Corrigindo erros de UTF-8...', 48)
+            if self.splash_screen is not None: self.splash_screen.update_text('Corrigindo erros de UTF-8...')
+
             for k in UTF8_dict:
                 df['city'] = df['city'].str.replace(k, UTF8_dict[k])
 
@@ -86,10 +101,14 @@ class CovidData():
                 # Arquivo .xlsx não foi baixado ou convertido ou usuário quer baixar novo
                 # Baixa, move e converte para .csv
                 if self.dialog is not None: self.dialog._update('Baixando arquivo do Ministério da Saúde...', 16)
+                if self.splash_screen is not None: self.splash_screen.update_text('Baixando do Ministério da Saúde...')
+
                 f_op.download_file_min_saude()
                 f_op.move_xlsx_to(SCRIPT_PATH)
 
             if self.dialog is not None: self.dialog._update('Lendo .csv do Ministério da Saúde...', 24)
+            if self.splash_screen is not None: self.splash_screen.update_text('Lendo .csv do Ministério da Saúde...')
+
             df = pd.read_csv('raw.csv', delimiter=',', encoding='latin', lineterminator='\n')
             
             df.columns = ['region', 'state', 'city', 'coduf', 'codmun', 'codRegiaoSaude',
@@ -281,6 +300,7 @@ class CovidData():
         if self.valid_col(column, data_source):
 
             if self.dialog is not None: 
+                self.dialog.update_title('Realizando previsão')
                 self.dialog.show()
                 self.dialog._update('Consultando DataFrame...', 0)
 
@@ -330,7 +350,8 @@ class CovidData():
 
         if self.valid_col(column, data_source):
             
-            if self.dialog is not None: 
+            if self.dialog is not None:
+                self.dialog.update_title('Realizando previsões') 
                 self.dialog.show()
                 self.dialog._update('Consultando DataFrame...', 0)
 

@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtGui, QtCore
 from covid_gui import Ui_MainWindow, Ui_Dialog_Progress, Ui_Messagebox
 
 import sys
@@ -16,42 +16,35 @@ class Window(QtWidgets.QMainWindow):
     def __init__(self):
 
         self.progressbar_box = ProgressBarBox()
-        self.progressbar_box.show()
-
         self.messagebox = MessageBox()
+        self.splash_screen = SplashScreen()
+
+        self.splash_screen.update_text('Carregando dados...')
 
         # Carrega dados
-        self.progressbar_box._update('Carregando dados...', 0)
-        self.progressbar_box.update_title('Carregando...')
+        self.covid_data = CovidData(dialog=self.progressbar_box, messagebox=self.messagebox, splash_screen=self.splash_screen)
 
-        self.covid_data = CovidData(dialog=self.progressbar_box, messagebox=self.messagebox)
-
-        self.progressbar_box._update('Configurando interface...', 56)
+        self.splash_screen.update_text('Configurando Interface...')
 
         super(Window, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
         # associa os botões a métodos relevantes
-        self.progressbar_box._update('Configurando interface...', 64)
         self.ui.pushButton_execute.clicked.connect(self.execute)
 
         # tipos de gráfico
-        self.progressbar_box._update('Configurando interface...', 72)
         self.ui.comboBox_chart_type.addItems(['Dados observados','Previsão','Previsões Comparadas'])
 
-        self.progressbar_box._update('Configurando interface...', 80)
         self.ui.radio_MinSaude.toggled.connect(self.change_metric_list)
         self.ui.radio_Brasil_io.toggled.connect(self.change_metric_list)
 
-        self.progressbar_box._update('Configurando interface...', 88)
         self.ui.radio_MinSaude.setChecked(True)
 
         self.ui.action_UpdateBrasil_io.triggered.connect(self.update_data)
         self.ui.action_UpdateMinSaude.triggered.connect(self.update_data)
 
-        self.progressbar_box._update('Configurando interface...', 100)
-        self.progressbar_box.close()
+        self.splash_screen.close()
 
     # -------------------------------------------------------------------------------------------------------
     def execute(self):
@@ -181,16 +174,17 @@ class Window(QtWidgets.QMainWindow):
     def update_data(self):
 
         btn = self.sender()
-
+        self.progressbar_box.update_title('Baixando arquivos')
+        
         if 'Brasil.io' in btn.text():
             
             self.progressbar_box.show()
             f_op.download_file_brasil_io(dialog=self.progressbar_box)
             self.progressbar_box._update('Dados atualizados!', 100)
-            sleep(1)
-            self.progressbar_box.close()
 
             self.covid_data = CovidData(dialog=self.progressbar_box)
+
+            self.progressbar_box.close()
 
             self.messagebox.show_message('Dados do Brasil.io atualizados com sucesso!')
 
@@ -201,12 +195,13 @@ class Window(QtWidgets.QMainWindow):
             self.progressbar_box._update('Movendo e convertendo arquivo...', 75)
             f_op.move_xlsx_to(SCRIPT_PATH)
             self.progressbar_box._update('Dados atualizados!', 100)
-            sleep(1)
-            self.progressbar_box.close()
 
             self.covid_data = CovidData(dialog=self.progressbar_box)
-
+            
+            self.progressbar_box.close()
+            
             self.messagebox.show_message('Dados do Ministério da Saúde atualizados com sucesso!')
+            
 
 # -------------------------------------------------------------------------------------------------------
 class ProgressBarBox(QtWidgets.QDialog):
@@ -217,7 +212,7 @@ class ProgressBarBox(QtWidgets.QDialog):
         self.ui = Ui_Dialog_Progress()
         self.ui.setupUi(self)
 
-    def _update(self, text, percentage):
+    def _update(self, text, percentage=None):
 
         self.ui.label_dialog.setText(text)
         self.ui.progressBar.setValue(percentage)
@@ -258,6 +253,18 @@ class MessageBox(QtWidgets.QDialog):
         self.ui.label_msgbox_text.setWordWrap(True)
         
         self.show()
+
+class SplashScreen():
+    def __init__(self):
+        self.splash = QtWidgets.QSplashScreen(QtGui.QPixmap('logo.png')) 
+        self.splash.show()
+
+    def update_text(self, text):
+        self.splash.showMessage(text, QtCore.Qt.AlignBottom | QtCore.Qt.AlignLeft)
+        QtWidgets.qApp.processEvents()
+
+    def close(self):
+        self.splash.close()
 
 
 app = QtWidgets.QApplication([])
