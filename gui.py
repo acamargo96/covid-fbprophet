@@ -36,6 +36,9 @@ class Window(QtWidgets.QMainWindow):
         # tipos de gráfico
         self.ui.comboBox_chart_type.addItems(['Dados observados','Previsão','Previsões Comparadas'])
 
+        # modos de sazonalidade
+        self.ui.comboBox_seasonality_mode.addItems(['Aditiva', 'Multiplicativa'])
+
         self.ui.radio_MinSaude.toggled.connect(self.change_metric_list)
         self.ui.radio_Brasil_io.toggled.connect(self.change_metric_list)
 
@@ -56,19 +59,31 @@ class Window(QtWidgets.QMainWindow):
         data_source = self.get_data_source()
         add_moving_average = self.ui.checkBox_moving_avg.isChecked()
         
-        initial_date = self.ui.dateEdit_initial.date().toPyDate()
-        end_date = self.ui.dateEdit_end.date().toPyDate()
+        start_date = to_datetime(self.ui.dateEdit_initial.date().toPyDate())
+        end_date = to_datetime(self.ui.dateEdit_end.date().toPyDate())
         pred_periods = self.ui.spinBox_pred_periods.value()
         comp_periods = self.ui.spinBox_comp_periods.value()
+
+        dict_seas = {'Aditiva' : 'additive', 'Multiplicativa' : 'multiplicative'}
+
+        # parâmetros do prophet
+        seasonality_mode = dict_seas[self.ui.comboBox_seasonality_mode.currentText()]
+        changepoint_prior_scale = self.ui.doubleSpinBox_cps.value()
+        holidays_prior_scale = self.ui.doubleSpinBox_hps.value()
+        seasonality_prior_scale = self.ui.doubleSpinBox_sps.value()
+
+        if changepoint_prior_scale == 0: changepoint_prior_scale = 0.05
+        if holidays_prior_scale == 0: holidays_prior_scale=10.0
+        if seasonality_prior_scale == 0: seasonality_prior_scale=10.0
             
         # checa datas
-        if initial_date > end_date:
+        if start_date > end_date:
             # necessário trocar valores
-            aux_date = initial_date
-            initial_date = end_date
+            aux_date = start_date
+            start_date = end_date
             end_date = aux_date
 
-        if len(location_list) == 0:
+        if len(location_list) == 0: 
             self.messagebox.show_message('Nenhum local inserido!', type='Aviso')
         
         else:
@@ -80,22 +95,33 @@ class Window(QtWidgets.QMainWindow):
                 if chart_type == 'Dados observados':
                     # Mostrar dados observados de 1 só
                     self.covid_data.plot_column(metric, region=location[0], state=location[1], city=location[2], 
-                                                data_source=data_source, add_moving_average=add_moving_average)
+                                                data_source=data_source, add_moving_average=add_moving_average,
+                                                start_date=start_date, end_date=end_date)
                     
                 elif chart_type == 'Previsão':
                     # Mostrar previsão
                     self.covid_data.fit(metric, region=location[0], state=location[1], city=location[2], 
-                                        pred_periods=pred_periods, data_source=data_source) 
+                                        pred_periods=pred_periods, seasonality_mode=seasonality_mode,
+                                        seasonality_prior_scale=seasonality_prior_scale,
+                                        holidays_prior_scale=holidays_prior_scale,
+                                        changepoint_prior_scale=changepoint_prior_scale,
+                                        data_source=data_source, start_date=start_date, end_date=end_date) 
+                                        
 
                 else:
                     # Comparar previsões
                     self.covid_data.fit_compare(metric, region=location[0], state=location[1], city=location[2], 
-                                                compare_periods=comp_periods, pred_periods=pred_periods, data_source=data_source)
+                                                compare_periods=comp_periods, pred_periods=pred_periods, seasonality_mode=seasonality_mode,
+                                                seasonality_prior_scale=seasonality_prior_scale,
+                                                holidays_prior_scale=holidays_prior_scale,
+                                                changepoint_prior_scale=changepoint_prior_scale,
+                                                data_source=data_source, start_date=start_date, end_date=end_date)
 
             else:
                 if chart_type == 'Dados observados':
                     # Mostrar dados observados de mais de um
-                    self.covid_data.plot_compare(metric, location_list, data_source=data_source, add_moving_average=add_moving_average)
+                    self.covid_data.plot_compare(metric, location_list, data_source=data_source, add_moving_average=add_moving_average,
+                                                 start_date=start_date, end_date=end_date)
                 else:
                     self.messagebox.show_message('Nâo é possivel obter gráficos de %s para mais de um local. Tente individualmente!' % metric, \
                                                  type='Erro')

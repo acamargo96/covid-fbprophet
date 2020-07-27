@@ -160,7 +160,7 @@ class CovidData():
         
     # -------------------------------------------------------------------------------------------------------
 
-    def get_df(self, region, state, city, data_source):
+    def get_df(self, region, state, city, data_source, start_date, end_date):
         
         ''' None -> Dataframe (ou None)
         Retorna uma cópia do Dataframe do local selecionado com as colunas "data" e a inserida pelo usuário '''
@@ -168,6 +168,13 @@ class CovidData():
 
         # corrige o formato de leitura das datas
         df['date'] = pd.to_datetime(df['date']) #, dayfirst=True)
+
+        # filtra datas
+        if start_date is None: start_date = df['date'].min()
+        if end_date is None: end_date = df['date'].max()
+
+        mask = (df['date'] >= start_date) & (df['date'] <= end_date)
+        df = df.loc[mask]
 
         # cria colunas de dados log-transformados
         if 'casosAcumulado' in df.columns:
@@ -185,16 +192,17 @@ class CovidData():
     # -------------------------------------------------------------------------------------------------------
 
     def plot_column(self, column, region='', state='', city='', ax=None, data_source='Ministério da Saúde',
-                    add_moving_average=False):
+                    add_moving_average=False, start_date=None, end_date=None):
 
         '''(String, String, String, String) -> None
         Plota o gráfico de uma métrica em um local selecionado'''
 
         if self.valid_col(column, data_source):    
 
-            df = self.get_df(region, state, city, data_source)
+            df = self.get_df(region, state, city, data_source, start_date, end_date)
 
             if not df.empty:
+
                 if ax is None:
                     fig = plt.figure(facecolor='w', figsize=(10,6))
                     ax = fig.add_subplot(111)
@@ -226,7 +234,8 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def plot_compare(self, column, location_list, data_source='Ministério da Saúde', add_moving_average=False):
+    def plot_compare(self, column, location_list, data_source='Ministério da Saúde', add_moving_average=False,
+                     start_date=None, end_date=None):
         '''
         location_list é uma lista com tuples (region, state, city) '''
 
@@ -236,7 +245,8 @@ class CovidData():
 
             for location in location_list:
                 self.plot_column(column, location[0], location[1], location[2], ax=ax, 
-                                data_source=data_source, add_moving_average=add_moving_average)
+                                data_source=data_source, add_moving_average=add_moving_average,
+                                start_date=start_date, end_date=end_date)
             
             fig.legend()
             plt.show()   
@@ -258,7 +268,8 @@ class CovidData():
 
     # -------------------------------------------------------------------------------------------------------
 
-    def get_model(self, column, df, seasonality_mode):
+    def get_model(self, column, df, seasonality_mode, seasonality_prior_scale,
+                  holidays_prior_scale, changepoint_prior_scale):
 
         '''
         TODO: modificar o Cap
@@ -269,7 +280,9 @@ class CovidData():
             return Prophet(daily_seasonality=True,
                            weekly_seasonality=True)'''
 
-        return Prophet(daily_seasonality=True, weekly_seasonality=True, seasonality_mode=seasonality_mode)
+        return Prophet(daily_seasonality=True, weekly_seasonality=True, seasonality_mode=seasonality_mode, 
+                       seasonality_prior_scale=seasonality_prior_scale, holidays_prior_scale=holidays_prior_scale, 
+                       changepoint_prior_scale=changepoint_prior_scale)
 
     # -------------------------------------------------------------------------------------------------------
 
@@ -286,7 +299,9 @@ class CovidData():
     # -------------------------------------------------------------------------------------------------------
 
     def fit(self, column, region='', state='', city='', pred_periods=30, 
-            seasonality_mode='additive', data_source='Ministério da Saúde'):
+            seasonality_mode='additive', seasonality_prior_scale=10.0,
+            holidays_prior_scale=10.0, changepoint_prior_scale=0.05,
+            data_source='Ministério da Saúde', start_date=None, end_date=None):
         
         '''(String, String, String, String, Int) -> None
         Usa o Prophet para prever n dias e plotar o gráfico de uma métrica em um local selecionado'''
@@ -304,7 +319,7 @@ class CovidData():
                 self.dialog.show()
                 self.dialog._update('Consultando DataFrame...', 0)
 
-            df = self.get_df(region, state, city, data_source)
+            df = self.get_df(region, state, city, data_source, start_date, end_date)
             if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 25)
             df = df[['date', column]]
             if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 50)
@@ -312,7 +327,12 @@ class CovidData():
 
             if not df.empty:
                 if self.dialog is not None: self.dialog._update('Criando modelo...', 75)
-                m = self.get_model(column, df, seasonality_mode=seasonality_mode)
+                
+                m = self.get_model(column, df, seasonality_mode=seasonality_mode, 
+                                   seasonality_prior_scale=seasonality_prior_scale, 
+                                   holidays_prior_scale=holidays_prior_scale, 
+                                   changepoint_prior_scale=changepoint_prior_scale)
+
                 m.plot(self.forecast(df, column, pred_periods, m))
                 if self.dialog is not None: 
                     self.dialog._update('Previsão feita!', 100)
@@ -333,7 +353,9 @@ class CovidData():
     # -------------------------------------------------------------------------------------------------------
        
     def fit_compare(self, column, region='', state='', city='', compare_periods=60, 
-                    pred_periods=30, seasonality_mode='additive', data_source='Ministério da Saúde'):
+                    pred_periods=30, seasonality_mode='additive', seasonality_prior_scale=10.0,
+                    holidays_prior_scale=10.0, changepoint_prior_scale=0.05,
+                    data_source='Ministério da Saúde', start_date=None, end_date=None):
         
         ''' (String, String, String, String, Int, Int) -> None
         Faz previsões usando intervalos do dataframe e as plota em um mesmo gráfico
@@ -355,7 +377,8 @@ class CovidData():
                 self.dialog.show()
                 self.dialog._update('Consultando DataFrame...', 0)
 
-            df = self.get_df(region, state, city, data_source)
+            df = self.get_df(region, state, city, data_source, start_date, end_date)
+
             if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 15)
             df = df[['date', column]]
             if self.dialog is not None: self.dialog._update('Consultando DataFrame...', 30)
@@ -391,7 +414,10 @@ class CovidData():
                         sub_df = df.iloc[ : i + compare_periods]
                         num_forecasts = last_index + pred_periods - (i + compare_periods)
                     
-                    m = self.get_model(column, sub_df, seasonality_mode=seasonality_mode)
+                    m = self.get_model(column, sub_df, seasonality_mode=seasonality_mode, 
+                                       seasonality_prior_scale=seasonality_prior_scale, 
+                                       holidays_prior_scale=holidays_prior_scale, 
+                                       changepoint_prior_scale=changepoint_prior_scale)
                     
                     plot_color = choice(colors)
                     colors.remove(plot_color)
