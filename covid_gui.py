@@ -154,6 +154,8 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         self.menuArquivo = QtWidgets.QMenu(self.menubar)
         self.menuArquivo.setObjectName("menuArquivo")
+        self.menuAjuda = QtWidgets.QMenu(self.menubar)
+        self.menuAjuda.setObjectName("menuAjuda")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -162,9 +164,13 @@ class Ui_MainWindow(object):
         self.action_UpdateMinSaude.setObjectName("action_UpdateMinSaude")
         self.action_UpdateBrasil_io = QtWidgets.QAction(MainWindow)
         self.action_UpdateBrasil_io.setObjectName("action_UpdateBrasil_io")
+        self.actionFAQ = QtWidgets.QAction(MainWindow)
+        self.actionFAQ.setObjectName("actionFAQ")
         self.menuArquivo.addAction(self.action_UpdateMinSaude)
         self.menuArquivo.addAction(self.action_UpdateBrasil_io)
+        self.menuAjuda.addAction(self.actionFAQ)
         self.menubar.addAction(self.menuArquivo.menuAction())
+        self.menubar.addAction(self.menuAjuda.menuAction())
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -197,8 +203,10 @@ class Ui_MainWindow(object):
         self.label_7.setText(_translate("MainWindow", "Holidays Prior Scale"))
         self.label_8.setText(_translate("MainWindow", "Changepoint Prior Scale"))
         self.menuArquivo.setTitle(_translate("MainWindow", "Arquivo"))
+        self.menuAjuda.setTitle(_translate("MainWindow", "Ajuda"))
         self.action_UpdateMinSaude.setText(_translate("MainWindow", "Atualizar dados - Min Saúde"))
         self.action_UpdateBrasil_io.setText(_translate("MainWindow", "Atualizar dados - Brasil.io"))
+        self.actionFAQ.setText(_translate("MainWindow", "FAQ"))
 
 class Ui_Dialog_Progress(object):
     def setupUi(self, Dialog_Progress):
@@ -246,3 +254,60 @@ class Ui_Messagebox(object):
         _translate = QtCore.QCoreApplication.translate
         Messagebox.setWindowTitle(_translate("Messagebox", "TITLE"))
         self.label_msgbox_text.setText(_translate("Messagebox", "TextLabel"))
+
+class Ui_FAQBox(object):
+    def setupUi(self, FAQBox):
+        FAQBox.setObjectName("FAQBox")
+        FAQBox.resize(660, 550)
+        FAQBox.setMinimumSize(QtCore.QSize(660, 550))
+        FAQBox.setMaximumSize(QtCore.QSize(660, 550))
+        self.listWidget_FAQ = QtWidgets.QListWidget(FAQBox)
+        self.listWidget_FAQ.setGeometry(QtCore.QRect(20, 20, 291, 131))
+        self.listWidget_FAQ.setObjectName("listWidget_FAQ")
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        item = QtWidgets.QListWidgetItem()
+        self.listWidget_FAQ.addItem(item)
+        self.textBrowser_FAQ = QtWidgets.QTextBrowser(FAQBox)
+        self.textBrowser_FAQ.setGeometry(QtCore.QRect(20, 160, 621, 371))
+        self.textBrowser_FAQ.setObjectName("textBrowser_FAQ")
+
+        self.retranslateUi(FAQBox)
+        QtCore.QMetaObject.connectSlotsByName(FAQBox)
+
+    def retranslateUi(self, FAQBox):
+        _translate = QtCore.QCoreApplication.translate
+        FAQBox.setWindowTitle(_translate("FAQBox", "FAQ"))
+        __sortingEnabled = self.listWidget_FAQ.isSortingEnabled()
+        self.listWidget_FAQ.setSortingEnabled(False)
+        item = self.listWidget_FAQ.item(0)
+        item.setText(_translate("FAQBox", "Como o programa faz previsões?"))
+        item = self.listWidget_FAQ.item(1)
+        item.setText(_translate("FAQBox", "De onde vêm os dados?"))
+        item = self.listWidget_FAQ.item(2)
+        item.setText(_translate("FAQBox", "Como os dados são organizados no programa?"))
+        item = self.listWidget_FAQ.item(3)
+        item.setText(_translate("FAQBox", "Como o programa atualiza os dados?"))
+        item = self.listWidget_FAQ.item(4)
+        item.setText(_translate("FAQBox", "Como a interface gráfica foi criada?"))
+        item = self.listWidget_FAQ.item(5)
+        item.setText(_translate("FAQBox", "O que significam as \"Opções\" do Prophet?"))
+        item = self.listWidget_FAQ.item(6)
+        item.setText(_translate("FAQBox", "Por que o programa não encontra o local que digitei?"))
+        self.listWidget_FAQ.setSortingEnabled(__sortingEnabled)
+        self.textBrowser_FAQ.setHtml(_translate("FAQBox", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
+"<p align=\"justify\" style=\"-qt-paragraph-type:empty; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
+"<p align=\"justify\" style=\"-qt-paragraph-type:empty; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:12pt;\"><br /></p></body></html>"))

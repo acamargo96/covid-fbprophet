@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FAQBox</class>
+ <widget class="QDialog" name="FAQBox">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>660</width>
+    <height>550</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>660</width>
+    <height>550</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>660</width>
+    <height>550</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>FAQ</string>
+  </property>
+  <widget class="QListWidget" name="listWidget_FAQ">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>20</y>
+     <width>291</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Como o programa faz previsões?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>De onde vêm os dados?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Como os dados são organizados no programa?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Como o programa atualiza os dados?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Como a interface gráfica foi criada?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>O que significam as &quot;Opções&quot; do Prophet?</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Por que o programa não encontra o local que digitei?</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QTextBrowser" name="textBrowser_FAQ">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>160</y>
+     <width>621</width>
+     <height>371</height>
+    </rect>
+   </property>
+   <property name="html">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;justify&quot; style=&quot;-qt-paragraph-type:empty; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
+&lt;p align=&quot;justify&quot; style=&quot;-qt-paragraph-type:empty; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:12pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

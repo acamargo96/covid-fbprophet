@@ -457,7 +457,14 @@
     <addaction name="action_UpdateMinSaude"/>
     <addaction name="action_UpdateBrasil_io"/>
    </widget>
+   <widget class="QMenu" name="menuAjuda">
+    <property name="title">
+     <string>Ajuda</string>
+    </property>
+    <addaction name="actionFAQ"/>
+   </widget>
    <addaction name="menuArquivo"/>
+   <addaction name="menuAjuda"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_UpdateMinSaude">
@@ -468,6 +475,11 @@
   <action name="action_UpdateBrasil_io">
    <property name="text">
     <string>Atualizar dados - Brasil.io</string>
+   </property>
+  </action>
+  <action name="actionFAQ">
+   <property name="text">
+    <string>FAQ</string>
    </property>
   </action>
  </widget>

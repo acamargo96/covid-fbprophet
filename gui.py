@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
-from covid_gui import Ui_MainWindow, Ui_Dialog_Progress, Ui_Messagebox
+from covid_gui import Ui_MainWindow, Ui_Dialog_Progress, Ui_Messagebox, Ui_FAQBox
 
 import sys
 import os
@@ -8,6 +8,7 @@ from pandas import to_datetime
 
 from main import CovidData
 import file_operations as f_op
+from faq_answers import dict_answers
 
 SCRIPT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,6 +19,7 @@ class Window(QtWidgets.QMainWindow):
         self.progressbar_box = ProgressBarBox()
         self.messagebox = MessageBox()
         self.splash_screen = SplashScreen()
+        self.faq_box = FAQBox()
 
         self.splash_screen.update_text('Carregando dados...')
 
@@ -46,6 +48,8 @@ class Window(QtWidgets.QMainWindow):
 
         self.ui.action_UpdateBrasil_io.triggered.connect(self.update_data)
         self.ui.action_UpdateMinSaude.triggered.connect(self.update_data)
+
+        self.ui.actionFAQ.triggered.connect(self.faq_box.show)
 
         self.splash_screen.close()
 
@@ -149,7 +153,7 @@ class Window(QtWidgets.QMainWindow):
                 if cell is None:
                     location.append('')
                 else:
-                    location.append(cell.text())
+                    location.append(cell.text().strip())
             
             location_list.append(tuple(location))
             i += 1
@@ -159,8 +163,14 @@ class Window(QtWidgets.QMainWindow):
     # -------------------------------------------------------------------------------------------------------
     def valid_row(self, i, table):
 
-        # pelo menos um valor preenchido
-        return table.item(i,0) is not None or table.item(i,1) is not None or table.item(i,2) is not None
+        is_valid = False
+
+        for j in range(3):
+            if table.item(i, j) is not None and table.item(i, j).text().strip() != '':
+                return True
+
+        return is_valid
+        #return table.item(i,0) is not None or table.item(i,1) is not None or table.item(i,2) is not None
 
     # -------------------------------------------------------------------------------------------------------
     def change_metric_list(self):
@@ -201,33 +211,24 @@ class Window(QtWidgets.QMainWindow):
 
         btn = self.sender()
         self.progressbar_box.update_title('Baixando arquivos')
+        self.progressbar_box.show()
         
-        if 'Brasil.io' in btn.text():
-            
-            self.progressbar_box.show()
+        if 'Brasil.io' in btn.text():    
+            source = 'Brasil.io'
             f_op.download_file_brasil_io(dialog=self.progressbar_box)
             self.progressbar_box._update('Dados atualizados!', 100)
 
-            self.covid_data = CovidData(dialog=self.progressbar_box)
-
-            self.progressbar_box.close()
-
-            self.messagebox.show_message('Dados do Brasil.io atualizados com sucesso!')
-
         else:
-
-            self.progressbar_box.show()
+            source = 'Ministério da Saúde'
             f_op.download_file_min_saude(dialog=self.progressbar_box)
             self.progressbar_box._update('Movendo e convertendo arquivo...', 75)
             f_op.move_xlsx_to(SCRIPT_PATH)
             self.progressbar_box._update('Dados atualizados!', 100)
 
-            self.covid_data = CovidData(dialog=self.progressbar_box)
-            
-            self.progressbar_box.close()
-            
-            self.messagebox.show_message('Dados do Ministério da Saúde atualizados com sucesso!')
-            
+        self.covid_data = CovidData(dialog=self.progressbar_box)
+        self.progressbar_box.close()
+        self.messagebox.show_message('Dados do %s atualizados com sucesso!' % source)
+        self.change_metric_list() # para atualizar as datas sem ter que especificar nesse método qual dataframe está sendo usado
 
 # -------------------------------------------------------------------------------------------------------
 class ProgressBarBox(QtWidgets.QDialog):
@@ -280,7 +281,9 @@ class MessageBox(QtWidgets.QDialog):
         
         self.show()
 
+# -------------------------------------------------------------------------------------------------------
 class SplashScreen():
+
     def __init__(self):
         self.splash = QtWidgets.QSplashScreen(QtGui.QPixmap('logo.png')) 
         self.splash.show()
@@ -291,6 +294,26 @@ class SplashScreen():
 
     def close(self):
         self.splash.close()
+
+# -------------------------------------------------------------------------------------------------------
+class FAQBox(QtWidgets.QDialog):
+
+    def __init__(self):
+        super(FAQBox, self).__init__()
+        self.ui = Ui_FAQBox()
+        self.ui.setupUi(self)
+        self.ui.listWidget_FAQ.itemSelectionChanged.connect(self.show_answer)
+
+    def show_answer(self):
+        
+        self.ui.textBrowser_FAQ.clear()
+        question = self.ui.listWidget_FAQ.currentItem().text()
+        answer = dict_answers[question]
+        self.ui.textBrowser_FAQ.append(answer)
+        QtWidgets.qApp.processEvents()
+    
+
+
 
 
 app = QtWidgets.QApplication([])
