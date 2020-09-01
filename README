@@ -10,5 +10,6 @@ Módulos utilizados diretamente:
 - matplotlib
 - NumPy
 - Selenium
+- webdriver-manager
 
 Interface gráfica elaborada com o QtDesigner.
