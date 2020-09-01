@@ -1,5 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
+
 import requests
 
 import os
@@ -18,7 +20,9 @@ def download_file_min_saude(dialog=None):
 
     # faz download do arquivo .xlsx dos dados do min. da saude
     if dialog is not None: dialog._update('Criando Browser...', 0)
-    driver = webdriver.Chrome()
+    #driver = webdriver.Chrome()
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    
     driver.get('https://covid.saude.gov.br/')
     
     sleep(1)
